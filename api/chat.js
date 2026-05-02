@@ -41,7 +41,7 @@ const text = raw
   .replace(/\*(.*?)\*/g, '$1')            // remove *italic*
   .replace(/#{1,6}\s+/g, '')             // remove # headers
   .replace(/^\s*[-•]\s+/gm, '• ')        // clean bullet points
-  .replace(/\n{3,}/g, '\n\n')            // max 2 consecutive line breaks
+  .replace(/\n{2,}/g, '\n\n')            // max 2 consecutive line breaks
   .replace(/([.!?])\s+(?=[A-Z])/g, '$1\n\n')  // line break after sentences
   .trim();
 
