@@ -451,9 +451,19 @@ d3.json('https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json').then(w
     {n:'MALAYSIA',lat:5.2,lon:111},{n:'TAIWAN',lat:23.5,lon:121}
   ];
   nationLabels.forEach(n=>{
-    if(n.lat>=latMin&&n.lat<=latMax&&n.lon>=lonMin&&n.lon<=lonMax)
-      svg.append('text').attr('x',px(n.lon)).attr('y',py(n.lat)).attr('fill',labelCol).attr('font-size','8').attr('text-anchor','middle').attr('letter-spacing','1').text(n.n);
-  });
+  const [x,y] = projection(n.pos);
+  svg.append('text').attr('x',x).attr('y',y)
+    .attr('fill','#a0b8d0')
+    .attr('font-size','11')
+    .attr('text-anchor','middle')
+    .attr('letter-spacing','2')
+    .attr('font-weight','500')
+    .attr('paint-order','stroke')
+    .attr('stroke', isDark?'#071222':'#dbeaf7')
+    .attr('stroke-width','3')
+    .attr('stroke-linejoin','round')
+    .text(n.n);
+});
 
   islands.forEach((isl,i)=>{
     const x=px(isl.lon),y=py(isl.lat),col=colorMap[isl.ctrl]||'#888780';
