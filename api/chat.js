@@ -42,8 +42,7 @@ const text = raw
   .replace(/#{1,6}\s+/g, '')             // remove # headers
   .replace(/^\s*[-•]\s+/gm, '• ')        // clean bullet points
   .replace(/\n{3,}/g, '\n\n')            // max 2 consecutive line breaks
-  .replace(/\n(\d+\.)/g, '\n\n$1');  // add extra line break BEFORE numbers
-  .replace(/([.!?])\s+(?=[A-Z])/g, '$1\n\n')  // line break after sentences
+  .replace(/\n(\d+\.)/g, '\n\n$1') // add extra line break BEFORE numbers
   .trim();
   
 res.status(200).json({ response: text });
