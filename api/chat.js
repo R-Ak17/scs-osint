@@ -12,37 +12,34 @@ export default async function handler(req, res) {
   try {
     const { messages, system } = req.body;
 
-    const contents = messages.map(m => ({
-      role: m.role === 'assistant' ? 'model' : 'user',
-      parts: [{ text: String(m.content) }],
-    }));
-
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent?key=${apiKey}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          system_instruction: {
-            parts: [{ text: system || 'You are an OSINT analyst specialising in South China Sea maritime disputes. Answer concisely and factually.' }]
-          },
-          contents,
-          generationConfig: { maxOutputTokens: 1024 },
-        }),
-      }
-    );
+    const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model: 'llama-3.1-8b-instant',
+        messages: [
+          { role: 'system', content: system || 'You are an OSINT analyst specialising in South China Sea maritime disputes. Answer concisely and factually.' },
+          ...messages
+        ],
+        max_tokens: 1024,
+      }),
+    });
 
     const data = await response.json();
 
     if (!response.ok) {
-      const errMsg = data?.error?.message || JSON.stringify(data);
-      return res.status(response.status).json({ error: errMsg });
+      return res.status(response.status).json({ error: data?.error?.message || JSON.stringify(data) });
     }
 
-    const text = data?.candidates?.[0]?.content?.parts?.[0]?.text || 'No response received.';
+    const text = data?.choices?.[0]?.message?.content || 'No response received.';
     res.status(200).json({ response: text });
 
   } catch (err) {
     res.status(500).json({ error: err.message || 'Unknown server error' });
+  }
+}
   }
 }
