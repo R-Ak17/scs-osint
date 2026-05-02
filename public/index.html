@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>SCS OSINT Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+  :root {
+    --bg: #f9f8f5;
+    --surface: #ffffff;
+    --surface2: #f1efe8;
+    --border: rgba(0,0,0,0.10);
+    --border2: rgba(0,0,0,0.18);
+    --text: #1a1a19;
+    --text2: #5f5e5a;
+    --text3: #888780;
+    --blue: #185FA5;
+    --blue-bg: #E6F1FB;
+    --blue-text: #0C447C;
+    --red: #E24B4A;
+    --red-bg: #FCEBEB;
+    --red-text: #A32D2D;
+    --green: #639922;
+    --green-bg: #EAF3DE;
+    --green-text: #3B6D11;
+    --amber: #BA7517;
+    --amber-bg: #FAEEDA;
+    --amber-text: #633806;
+    --sea: #dbeaf7;
+    --land: #e8e5dc;
+    --land-border: #c8c5bc;
+    --radius: 8px;
+    --radius-lg: 12px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #111110;
+      --surface: #1c1c1a;
+      --surface2: #242422;
+      --border: rgba(255,255,255,0.10);
+      --border2: rgba(255,255,255,0.18);
+      --text: #e8e6df;
+      --text2: #b4b2a9;
+      --text3: #888780;
+      --blue: #378ADD;
+      --blue-bg: #042C53;
+      --blue-text: #85B7EB;
+      --red: #E24B4A;
+      --red-bg: #501313;
+      --red-text: #F09595;
+      --green: #639922;
+      --green-bg: #173404;
+      --green-text: #97C459;
+      --amber: #EF9F27;
+      --amber-bg: #412402;
+      --amber-text: #FAC775;
+      --sea: #0d1f35;
+      --land: #2C2C2A;
+      --land-border: #444441;
+    }
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); line-height: 1.5; }
+  .layout { display: grid; grid-template-columns: 1fr 340px; min-height: 100vh; gap: 0; }
+  .main { padding: 1.25rem; overflow-y: auto; }
+  .sidebar { border-left: 0.5px solid var(--border); display: flex; flex-direction: column; background: var(--surface); }
+  .topbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; flex-wrap: wrap; gap: 8px; }
+  .topbar h1 { font-size: 15px; font-weight: 500; }
+  .badges { display: flex; gap: 6px; flex-wrap: wrap; }
+  .badge { font-size: 11px; padding: 3px 10px; border-radius: 99px; background: var(--blue-bg); color: var(--blue-text); border: 0.5px solid var(--border); }
+  .badge.red { background: var(--red-bg); color: var(--red-text); }
+  .metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px,1fr)); gap: 8px; margin-bottom: 1rem; }
+  .metric { background: var(--surface2); border-radius: var(--radius); padding: 0.75rem 1rem; }
+  .metric .lbl { font-size: 11px; color: var(--text3); margin-bottom: 3px; }
+  .metric .val { font-size: 20px; font-weight: 500; }
+  .metric .sub { font-size: 10px; color: var(--text3); margin-top: 2px; }
+  .card { background: var(--surface); border: 0.5px solid var(--border); border-radius: var(--radius-lg); padding: 1rem 1.25rem; margin-bottom: 10px; }
+  .card h3 { font-size: 11px; font-weight: 500; color: var(--text3); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 0.75rem; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
+  @media (max-width: 900px) { .layout { grid-template-columns: 1fr; } .sidebar { border-left: none; border-top: 0.5px solid var(--border); } }
+  @media (max-width: 600px) { .grid2 { grid-template-columns: 1fr; } }
+  .map-wrap { background: var(--sea); border-radius: var(--radius); overflow: hidden; }
+  .map-legend { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 8px; font-size: 11px; color: var(--text3); }
+  .leg-item { display: flex; align-items: center; gap: 5px; }
+  .leg-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+  .irow { display: flex; align-items: center; gap: 8px; padding: 6px 0; border-bottom: 0.5px solid var(--border); cursor: pointer; border-radius: 4px; transition: background 0.1s; }
+  .irow:last-child { border-bottom: none; }
+  .irow:hover { background: var(--surface2); padding-left: 4px; }
+  .rdot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .iname { font-size: 13px; font-weight: 500; flex: 1; }
+  .itags { display: flex; gap: 3px; }
+  .itag { font-size: 10px; padding: 2px 6px; border-radius: 99px; border: 0.5px solid var(--border); color: var(--text3); background: var(--surface2); }
+  .detail { display: none; background: var(--surface2); border-radius: var(--radius); padding: 0.65rem 0.85rem; margin-top: 4px; font-size: 12px; color: var(--text2); line-height: 1.7; }
+  .detail.open { display: block; }
+  .detail strong { color: var(--text); font-weight: 500; }
+  .ask-btn { width: 100%; margin-top: 0.65rem; padding: 7px 10px; font-size: 12px; border-radius: var(--radius); border: 0.5px solid var(--border2); background: transparent; color: var(--text2); cursor: pointer; text-align: left; transition: background 0.1s; }
+  .ask-btn:hover { background: var(--surface2); color: var(--text); }
+  .br-row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+  .brl { font-size: 12px; color: var(--text2); width: 90px; flex-shrink: 0; }
+  .brt { flex: 1; height: 7px; background: var(--surface2); border-radius: 99px; overflow: hidden; }
+  .brf { height: 100%; border-radius: 99px; }
+  .brv { font-size: 12px; font-weight: 500; width: 30px; text-align: right; }
+  .erow { display: flex; gap: 10px; padding: 6px 0; border-bottom: 0.5px solid var(--border); }
+  .erow:last-child { border-bottom: none; }
+  .edate { font-size: 11px; color: var(--text3); width: 52px; flex-shrink: 0; padding-top: 2px; }
+  .et { font-size: 13px; font-weight: 500; }
+  .es { font-size: 11px; color: var(--text2); }
+  .etag { display: inline-block; font-size: 10px; padding: 2px 6px; border-radius: 99px; margin-left: 4px; vertical-align: middle; }
+  .etag.mil { background: var(--red-bg); color: var(--red-text); }
+  .etag.dip { background: var(--blue-bg); color: var(--blue-text); }
+  .etag.eco { background: var(--green-bg); color: var(--green-text); }
+  .ii-item { display: flex; gap: 8px; padding: 6px 0; border-bottom: 0.5px solid var(--border); }
+  .ii-item:last-child { border-bottom: none; }
+  .ii-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; margin-top: 5px; }
+  .ii-t { font-size: 13px; font-weight: 500; }
+  .ii-s { font-size: 11px; color: var(--text2); }
+  .src-row { display: flex; align-items: center; gap: 8px; padding: 5px 0; border-bottom: 0.5px solid var(--border); }
+  .src-row:last-child { border-bottom: none; }
+  .src-type { font-size: 10px; padding: 2px 6px; border-radius: 99px; background: var(--surface2); color: var(--text3); border: 0.5px solid var(--border); }
+  .src-name { font-size: 12px; flex: 1; }
+  .src-rel { font-size: 11px; color: var(--text3); }
+
+  /* Sidebar / chat */
+  .sidebar-header { padding: 1rem 1.25rem; border-bottom: 0.5px solid var(--border); }
+  .sidebar-header h2 { font-size: 13px; font-weight: 500; }
+  .sidebar-header p { font-size: 11px; color: var(--text3); margin-top: 2px; }
+  .chat-messages { flex: 1; overflow-y: auto; padding: 1rem; display: flex; flex-direction: column; gap: 10px; }
+  .msg { max-width: 90%; padding: 8px 12px; border-radius: var(--radius-lg); font-size: 13px; line-height: 1.6; }
+  .msg.user { align-self: flex-end; background: var(--blue); color: #fff; border-radius: var(--radius-lg) var(--radius-lg) 4px var(--radius-lg); }
+  .msg.assistant { align-self: flex-start; background: var(--surface2); color: var(--text); border: 0.5px solid var(--border); border-radius: var(--radius-lg) var(--radius-lg) var(--radius-lg) 4px; }
+  .msg.system { align-self: center; font-size: 11px; color: var(--text3); background: none; border: none; padding: 4px 0; }
+  .msg.loading { align-self: flex-start; background: var(--surface2); border: 0.5px solid var(--border); border-radius: var(--radius-lg); padding: 8px 16px; }
+  .typing-dots span { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--text3); margin: 0 2px; animation: bounce 1.2s infinite; }
+  .typing-dots span:nth-child(2) { animation-delay: 0.2s; }
+  .typing-dots span:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes bounce { 0%,60%,100%{transform:translateY(0)} 30%{transform:translateY(-5px)} }
+  .chat-input-area { padding: 0.75rem 1rem; border-top: 0.5px solid var(--border); display: flex; gap: 8px; }
+  .chat-input-area textarea { flex: 1; background: var(--surface2); border: 0.5px solid var(--border2); border-radius: var(--radius); padding: 8px 10px; font-size: 13px; color: var(--text); resize: none; outline: none; font-family: inherit; line-height: 1.5; }
+  .chat-input-area textarea:focus { border-color: var(--blue); }
+  .send-btn { padding: 8px 14px; background: var(--blue); color: #fff; border: none; border-radius: var(--radius); font-size: 13px; cursor: pointer; font-weight: 500; flex-shrink: 0; }
+  .send-btn:hover { opacity: 0.88; }
+  .send-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .quick-prompts { padding: 0 1rem 0.75rem; display: flex; flex-direction: column; gap: 5px; }
+  .qp { font-size: 11px; padding: 5px 8px; border-radius: var(--radius); border: 0.5px solid var(--border); background: transparent; color: var(--text2); cursor: pointer; text-align: left; transition: background 0.1s; }
+  .qp:hover { background: var(--surface2); }
+</style>
+</head>
+<body>
+<div class="layout">
+  <main class="main">
+    <div class="topbar">
+      <h1>South China Sea — OSINT Analyst Dashboard</h1>
+      <div class="badges">
+        <span class="badge">UNCLASSIFIED / OSINT</span>
+        <span class="badge red" id="tension-badge">TENSION: HIGH</span>
+        <span class="badge" id="ts"></span>
+      </div>
+    </div>
+
+    <div class="metrics">
+      <div class="metric"><div class="lbl">Monitored features</div><div class="val">14</div><div class="sub">reefs, shoals, islands</div></div>
+      <div class="metric"><div class="lbl">Active claimants</div><div class="val">6</div><div class="sub">CN VN PH MY TW BN</div></div>
+      <div class="metric"><div class="lbl">Infra events (90d)</div><div class="val">22</div><div class="sub">construction / dredging</div></div>
+      <div class="metric"><div class="lbl">Incidents (90d)</div><div class="val">17</div><div class="sub">coast guard / naval</div></div>
+      <div class="metric"><div class="lbl">EEZ overlaps</div><div class="val">9</div><div class="sub">active legal disputes</div></div>
+    </div>
+
+    <div class="card">
+      <h3>Geographic overview — SCS contested features</h3>
+      <div class="map-wrap"><svg id="scs-map" viewBox="0 0 680 440" width="100%" style="display:block;"></svg></div>
+      <div class="map-legend">
+        <div class="leg-item"><div class="leg-dot" style="background:#E24B4A;"></div><span>CN controlled</span></div>
+        <div class="leg-item"><div class="leg-dot" style="background:#185FA5;"></div><span>PH administered</span></div>
+        <div class="leg-item"><div class="leg-dot" style="background:#639922;"></div><span>VN administered</span></div>
+        <div class="leg-item"><div class="leg-dot" style="background:#BA7517;"></div><span>TW administered</span></div>
+        <div class="leg-item"><div class="leg-dot" style="background:#EF9F27;"></div><span>MY administered</span></div>
+      </div>
+    </div>
+
+    <div class="grid2">
+      <div>
+        <div class="card">
+          <h3>Contested features — claim matrix</h3>
+          <div id="island-list"></div>
+        </div>
+      </div>
+      <div>
+        <div class="card">
+          <h3>Infrastructure activity (90d)</h3>
+          <div id="infra-list"></div>
+        </div>
+        <div class="card">
+          <h3>Resource claim intensity</h3>
+          <div id="res-bars"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>Intelligence timeline — SCS events 2024–2025</h3>
+      <div id="events-list"></div>
+    </div>
+
+    <div class="grid2">
+      <div class="card">
+        <h3>Claimant posture — radar</h3>
+        <div style="position:relative;width:100%;height:230px;">
+          <canvas id="radarChart" role="img" aria-label="Radar chart comparing SCS claimant posture">Radar chart comparing China, Philippines, Vietnam, Malaysia, Taiwan.</canvas>
+        </div>
+      </div>
+      <div class="card">
+        <h3>OSINT source index</h3>
+        <div id="sources-list"></div>
+      </div>
+    </div>
+  </main>
+
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <h2>AI analyst</h2>
+      <p>Powered by Claude — ask anything about the SCS</p>
+    </div>
+    <div class="chat-messages" id="chat-messages">
+      <div class="msg system">Ask about any feature, incident, or claimant</div>
+    </div>
+    <div class="quick-prompts">
+      <button class="qp" onclick="sendQuick('What is the current situation at Second Thomas Shoal?')">Second Thomas Shoal situation</button>
+      <button class="qp" onclick="sendQuick('Compare Chinese and Vietnamese strategies in the SCS')">CN vs VN strategy comparison</button>
+      <button class="qp" onclick="sendQuick('What hydrocarbon resources are at stake in the Spratlys?')">Spratly hydrocarbon resources</button>
+      <button class="qp" onclick="sendQuick('What does the 2016 PCA ruling say and why does it matter?')">2016 PCA ruling explained</button>
+    </div>
+    <div class="chat-input-area">
+      <textarea id="chat-input" rows="2" placeholder="Ask the analyst..."></textarea>
+      <button class="send-btn" id="send-btn" onclick="sendMessage()">Send</button>
+    </div>
+  </aside>
+</div>
+
+<script>
+document.getElementById('ts').textContent = new Date().toUTCString().slice(0,22)+' UTC';
+
+const islands = [
+  {name:'Fiery Cross Reef',ctrl:'CN',risk:'high',lat:9.55,lon:114.23,detail:'<strong>Control:</strong> CN. Fully militarised artificial island. <strong>Infrastructure:</strong> 3,125m runway, HQ-9 SAMs, YJ-12B ASCMs, hangars for 24 fighters. <strong>Legal:</strong> PCA 2016 — CN has no legal basis. <strong>Significance:</strong> CN primary anchor in Spratlys.'},
+  {name:'Mischief Reef',ctrl:'CN',risk:'high',lat:9.91,lon:115.53,detail:'<strong>Control:</strong> CN (seized 1995). 250nm from PH Palawan — inside PH EEZ. <strong>Infrastructure:</strong> 3,000m runway, large port basin, barracks, hangars. <strong>Legal:</strong> PCA found CN presence violates UNCLOS.'},
+  {name:'Subi Reef',ctrl:'CN',risk:'high',lat:10.93,lon:114.08,detail:'<strong>Control:</strong> CN. 13nm from PH-held Thitu Island. <strong>Infrastructure:</strong> 3,000m runway, radar arrays, hangar complexes, deep-water port. <strong>Significance:</strong> Monitors PH activity at Thitu.'},
+  {name:'Scarborough Shoal',ctrl:'CN',risk:'high',lat:15.13,lon:117.75,detail:'<strong>Control:</strong> CN effective control since 2012. 124nm from Luzon — inside PH EEZ. <strong>Incidents:</strong> Water cannon used against PH fishing/supply vessels throughout 2024–25. <strong>Legal:</strong> PCA found CN cannot exclude PH fishermen.'},
+  {name:'Paracel Islands',ctrl:'CN',risk:'high',lat:16.5,lon:112.0,detail:'<strong>Control:</strong> CN (seized from VN 1974). VN and TW also claim. <strong>Infrastructure:</strong> Woody Island — HQ-9 SAMs, J-11 fighters, H-6K bomber-capable runway. <strong>VN claim:</strong> Annually protested; no enforcement capacity.'},
+  {name:'Second Thomas Shoal',ctrl:'PH',risk:'high',lat:9.37,lon:115.87,detail:'<strong>Control:</strong> PH maintains grounded BRP Sierra Madre as sovereign marker. <strong>Incidents:</strong> CN coast guard repeatedly blocked PH resupply missions 2023–25 with water cannon and laser devices. <strong>US treaty:</strong> Art. 5 MDT confirmed applicable.'},
+  {name:'Thitu Island',ctrl:'PH',risk:'med',lat:11.05,lon:114.28,detail:'<strong>Control:</strong> PH (Pag-asa). Largest PH-held Spratly feature. <strong>Infrastructure:</strong> Runway, small pier, civilian settlement. PH upgrading harbour 2023–25. <strong>Context:</strong> CN Subi Reef 13nm away.'},
+  {name:'Spratly Island',ctrl:'VN',risk:'med',lat:8.63,lon:111.92,detail:'<strong>Control:</strong> VN. One of 21 VN-administered Spratly features. <strong>Infrastructure:</strong> Expanded outposts since 2014; sub pens reported at some features. <strong>Strategy:</strong> Incremental construction to avoid provoking large CN response.'},
+  {name:'Amboyna Cay',ctrl:'VN',risk:'med',lat:7.86,lon:112.92,detail:'<strong>Control:</strong> VN. Also claimed by PH and CN. <strong>Resources:</strong> Adjacent to productive fishing grounds and potential oil blocks.'},
+  {name:'Luconia Shoals',ctrl:'MY',risk:'med',lat:5.5,lon:112.8,detail:'<strong>Control:</strong> MY EEZ. <strong>Incidents:</strong> CN coast guard loitering near MY oil platforms 2019–2024. <strong>Resources:</strong> Adjacent to Sarawak offshore gas blocks. <strong>MY strategy:</strong> Quiet diplomacy; avoids public confrontation.'},
+  {name:'Itu Aba (Taiping)',ctrl:'TW',risk:'low',lat:10.38,lon:114.37,detail:'<strong>Control:</strong> TW. Largest natural island in Spratlys. <strong>Infrastructure:</strong> Runway, lighthouse, hospital, coast guard post. <strong>Legal:</strong> TW disputes PCA ruling it is a "rock" not island.'},
+];
+
+const infra=[
+  {col:'#E24B4A',t:'Runway maintenance — Fiery Cross Reef',s:'CN · Maxar SAR imagery Apr 2025'},
+  {col:'#E24B4A',t:'New hangar construction — Mischief Reef',s:'CN · Planet Labs Apr 2025'},
+  {col:'#E24B4A',t:'Radar array upgrade — Woody Island (Paracels)',s:'CN · Maxar Feb 2025'},
+  {col:'#185FA5',t:'Harbour expansion — Thitu Island',s:'PH · PH Navy press release Mar 2025'},
+  {col:'#639922',t:'Outpost expansion — South Spratly features',s:'VN · CSIS AMTI Jan 2025'},
+  {col:'#E24B4A',t:'CG vessel surge — Scarborough Shoal',s:'CN · AIS / MarineTraffic Feb 2025'},
+];
+
+const resources=[
+  {l:'Oil & gas',v:91,c:'#E24B4A'},
+  {l:'Fisheries',v:85,c:'#185FA5'},
+  {l:'Shipping lanes',v:98,c:'#BA7517'},
+  {l:'Rare earths',v:38,c:'#639922'},
+  {l:'Strategic depth',v:94,c:'#7F77DD'},
+];
+
+const events=[
+  {d:'Apr 2025',t:'CN water cannon disables PH vessel at 2nd Thomas Shoal',tags:['mil'],s:'Most severe 2025 incident; US reaffirms MDT; PH files protest.'},
+  {d:'Mar 2025',t:'PH-US Balikatan — 17,600 troops, first live-fire sinking exercise in SCS',tags:['mil'],s:'Held near Batanes; CN condemns as "provocative".'},
+  {d:'Feb 2025',t:'CN coast guard law expanded — arrest powers in "CN waters"',tags:['mil','dip'],s:'PH, VN, MY formally protest. US calls it destabilising.'},
+  {d:'Jan 2025',t:'VN-CN fisheries patrol agreement — Gulf of Tonkin renewed',tags:['eco','dip'],s:'Ambiguity over Paracel-adjacent waters flagged by analysts.'},
+  {d:'Dec 2024',t:'PH files second UNCLOS arbitration against CN',tags:['dip'],s:'Covers CN coast guard conduct and harassment of PH fishermen.'},
+  {d:'Nov 2024',t:'CN dredging detected near Scarborough — potential new outpost',tags:['mil'],s:'CSIS AMTI satellite imagery; CN denies.'},
+  {d:'Sep 2024',t:'MY-CN standoff — Luconia Shoals gas block',tags:['eco','mil'],s:'CN CG shadowed MY drillship 3 weeks; diplomatic protest filed.'},
+  {d:'Jul 2024',t:'ASEAN-China COC 22nd round — no progress',tags:['dip'],s:'CN insists COC apply within "9-dash line"; ASEAN rejects framing.'},
+];
+
+const sources=[
+  {tp:'SAR/EO',n:'CSIS Asia Maritime Transparency Initiative',r:'Weekly'},
+  {tp:'SAR/EO',n:'Planet Labs / Maxar',r:'Daily'},
+  {tp:'AIS',n:'MarineTraffic / Global Fishing Watch',r:'Live'},
+  {tp:'Legal',n:'PCA 2016 Award',r:'Archive'},
+  {tp:'Gov',n:'PH DFA / PCG press releases',r:'Daily'},
+  {tp:'Media',n:'Benar News / RFA / Reuters',r:'Daily'},
+];
+
+function renderAll(){
+  document.getElementById('island-list').innerHTML=islands.map((d,i)=>`
+    <div>
+      <div class="irow" onclick="toggleD(${i})">
+        <span class="rdot" style="background:${d.risk==='high'?'#E24B4A':d.risk==='med'?'#EF9F27':'#639922'};"></span>
+        <span class="iname">${d.name}</span>
+        <div class="itags"><span class="itag">${d.ctrl}</span><span class="itag">${d.risk}</span></div>
+      </div>
+      <div class="detail" id="dd${i}">${d.detail}<br>
+        <button class="ask-btn" onclick="sendQuick('OSINT analysis of ${d.name}: control, infrastructure, legal status, recent incidents')">Analyse ${d.name} ↗</button>
+      </div>
+    </div>`).join('');
+
+  document.getElementById('infra-list').innerHTML=infra.map(i=>`
+    <div class="ii-item">
+      <div class="ii-dot" style="background:${i.col};"></div>
+      <div><div class="ii-t">${i.t}</div><div class="ii-s">${i.s}</div></div>
+    </div>`).join('');
+
+  document.getElementById('res-bars').innerHTML=resources.map(r=>`
+    <div class="br-row">
+      <span class="brl">${r.l}</span>
+      <div class="brt"><div class="brf" style="width:${r.v}%;background:${r.c};"></div></div>
+      <span class="brv" style="color:${r.c};">${r.v}</span>
+    </div>`).join('');
+
+  document.getElementById('events-list').innerHTML=events.map(e=>`
+    <div class="erow">
+      <div class="edate">${e.d}</div>
+      <div><div class="et">${e.t}${e.tags.map(t=>`<span class="etag ${t}">${t.toUpperCase()}</span>`).join('')}</div><div class="es">${e.s}</div></div>
+    </div>`).join('');
+
+  document.getElementById('sources-list').innerHTML=sources.map(s=>`
+    <div class="src-row">
+      <span class="src-type">${s.tp}</span>
+      <span class="src-name">${s.n}</span>
+      <span class="src-rel">${s.r}</span>
+    </div>`).join('');
+}
+
+function toggleD(i){
+  const el=document.getElementById('dd'+i);
+  el.classList.toggle('open');
+  const pin=document.querySelector(`[data-island="${i}"]`);
+  if(pin) pin.setAttribute('r', el.classList.contains('open')?9:6);
+}
+
+function drawMap(){
+  const svg=d3.select('#scs-map');
+  const W=680,H=440;
+  const isDark=matchMedia('(prefers-color-scheme:dark)').matches;
+  const gridCol=isDark?'rgba(255,255,255,0.05)':'rgba(0,0,0,0.05)';
+  const labelCol=isDark?'#888780':'#888780';
+  const latMin=3,latMax=22,lonMin=105,lonMax=122;
+  function px(lon){return(lon-lonMin)/(lonMax-lonMin)*W;}
+  function py(lat){return H-(lat-latMin)/(latMax-latMin)*H;}
+
+  svg.append('rect').attr('width',W).attr('height',H).attr('fill',isDark?'#0d1f35':'#dbeaf7');
+
+  for(let lat=5;lat<=20;lat+=5){
+    svg.append('line').attr('x1',0).attr('y1',py(lat)).attr('x2',W).attr('y2',py(lat)).attr('stroke',gridCol).attr('stroke-width',0.5);
+    svg.append('text').attr('x',4).attr('y',py(lat)-3).attr('fill',labelCol).attr('font-size','9').text(lat+'°N');
+  }
+  for(let lon=108;lon<=120;lon+=4){
+    svg.append('line').attr('x1',px(lon)).attr('y1',0).attr('x2',px(lon)).attr('y2',H).attr('stroke',gridCol).attr('stroke-width',0.5);
+    svg.append('text').attr('x',px(lon)+2).attr('y',H-4).attr('fill',labelCol).attr('font-size','9').text(lon+'°E');
+  }
+
+  const lands=[
+    {pts:[[105,22],[122,22],[122,20],[120,20],[118,21],[116,21],[114,22],[112,22],[110,21],[108,19],[106,19],[105,20]]},
+    {pts:[[105,22],[109,18],[109,16],[108,14],[108,11],[107,10],[106,10],[104,10],[103,11],[103,14],[104,17],[104,20],[105,22]]},
+    {pts:[[118,18],[121,18],[122,17],[121,15],[120,14],[119,13],[118,14],[117,15],[118,18]]},
+    {pts:[[117,11],[119,11],[120,10],[119,9],[118,8],[117,9],[116,10],[117,11]]},
+    {pts:[[109,4],[116,4],[117,5],[118,6],[117,7],[115,6],[113,5],[110,4],[109,4]]},
+    {pts:[[114,4],[115,4],[115,5],[114,5],[114,4]]},
+    {pts:[[120,22],[122,22],[122,25],[120,25],[120,22]]},
+  ];
+  lands.forEach(l=>{
+    svg.append('polygon').attr('points',l.pts.map(p=>`${px(p[0])},${py(p[1])}`).join(' '))
+      .attr('fill',isDark?'#2C2C2A':'#e8e5dc').attr('stroke',isDark?'#444441':'#c8c5bc').attr('stroke-width',0.75);
+  });
+
+  const dash=[[109,21],[112,22],[116,21],[118,17],[119,14],[119,10],[116,7],[113,5],[110,5],[108,8],[107,11],[107,14],[108,18],[109,21]];
+  svg.append('polygon').attr('points',dash.map(p=>`${px(p[0])},${py(p[1])}`).join(' '))
+    .attr('fill','none').attr('stroke','#E24B4A').attr('stroke-width',1.5).attr('stroke-dasharray','6,4').attr('opacity',0.55);
+
+  svg.append('text').attr('x',px(111.5)).attr('y',py(14)).attr('fill','#E24B4A').attr('font-size','8.5').attr('opacity',0.75).text('Nine-dash line');
+  svg.append('text').attr('x',px(113)).attr('y',py(10)).attr('fill',isDark?'#85B7EB':'#185FA5').attr('font-size','12').attr('font-weight','500').attr('text-anchor','middle').text('South China Sea');
+
+  const colorMap={CN:'#E24B4A',PH:'#185FA5',VN:'#639922',TW:'#BA7517',MY:'#EF9F27'};
+  const nationLabels=[
+    {n:'CHINA',lat:21,lon:111.5},{n:'VIETNAM',lat:14,lon:106.2},{n:'PHILIPPINES',lat:14,lon:120.8},
+    {n:'MALAYSIA',lat:5.2,lon:111},{n:'TAIWAN',lat:23.5,lon:121}
+  ];
+  nationLabels.forEach(n=>{
+    if(n.lat>=latMin&&n.lat<=latMax&&n.lon>=lonMin&&n.lon<=lonMax)
+      svg.append('text').attr('x',px(n.lon)).attr('y',py(n.lat)).attr('fill',labelCol).attr('font-size','8').attr('text-anchor','middle').attr('letter-spacing','1').text(n.n);
+  });
+
+  islands.forEach((isl,i)=>{
+    const x=px(isl.lon),y=py(isl.lat),col=colorMap[isl.ctrl]||'#888780';
+    const g=svg.append('g').style('cursor','pointer').on('click',()=>toggleD(i));
+    g.append('circle').attr('cx',x).attr('cy',y).attr('r',6).attr('data-island',i)
+      .attr('fill',col).attr('stroke','#fff').attr('stroke-width',1.5).attr('opacity',0.9);
+    g.append('text').attr('x',x+9).attr('y',y+4).attr('fill',isDark?'#D3D1C7':'#2C2C2A').attr('font-size','9').attr('font-weight','500').text(isl.name);
+  });
+}
+
+function renderRadar(){
+  const isDark=matchMedia('(prefers-color-scheme:dark)').matches;
+  new Chart(document.getElementById('radarChart'),{
+    type:'radar',
+    data:{
+      labels:['Military','Legal','Economic','Infrastructure','Diplomatic'],
+      datasets:[
+        {label:'China',data:[97,38,92,99,58],borderColor:'#E24B4A',backgroundColor:'rgba(226,75,74,0.08)',pointBackgroundColor:'#E24B4A',borderDash:[]},
+        {label:'Philippines',data:[33,88,38,22,72],borderColor:'#185FA5',backgroundColor:'rgba(24,95,165,0.07)',pointBackgroundColor:'#185FA5',borderDash:[4,2]},
+        {label:'Vietnam',data:[52,62,48,46,54],borderColor:'#639922',backgroundColor:'rgba(99,153,34,0.07)',pointBackgroundColor:'#639922',borderDash:[6,3]},
+        {label:'Malaysia',data:[28,55,60,20,48],borderColor:'#EF9F27',backgroundColor:'rgba(239,159,39,0.07)',pointBackgroundColor:'#EF9F27',borderDash:[2,4]},
+        {label:'Taiwan',data:[40,58,45,42,30],borderColor:'#BA7517',backgroundColor:'rgba(186,117,23,0.06)',pointBackgroundColor:'#BA7517',borderDash:[8,3]},
+      ]
+    },
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:true,position:'bottom',labels:{font:{size:10},color:isDark?'#b4b2a9':'#5f5e5a',boxWidth:10,padding:8}}},
+      scales:{r:{min:0,max:100,ticks:{stepSize:25,font:{size:9},color:'#888780',backdropColor:'transparent'},grid:{color:isDark?'rgba(255,255,255,0.07)':'rgba(0,0,0,0.07)'},pointLabels:{font:{size:10},color:isDark?'#b4b2a9':'#5f5e5a'}}}
+    }
+  });
+}
+
+renderAll(); drawMap(); renderRadar();
+
+// ---- Chat ----
+const chatHistory = [];
+const systemPrompt = `You are an expert OSINT analyst specialising in South China Sea maritime disputes, geopolitics, international law (UNCLOS), military affairs, and regional resources. 
+You have deep knowledge of all claimants (China, Philippines, Vietnam, Malaysia, Taiwan, Brunei), contested features (Spratlys, Paracels, Scarborough Shoal, etc.), infrastructure developments, the 2016 PCA arbitration ruling, and recent incidents.
+Answer concisely, factually, and analytically. Use specific details, dates, and OSINT indicators where relevant. Keep responses under 300 words unless a comprehensive breakdown is requested.`;
+
+async function sendMessage(){
+  const input = document.getElementById('chat-input');
+  const text = input.value.trim();
+  if(!text) return;
+  input.value='';
+  await doSend(text);
+}
+
+async function sendQuick(text){
+  await doSend(text);
+  document.getElementById('chat-messages').scrollIntoView({behavior:'smooth'});
+}
+
+async function doSend(text){
+  const btn = document.getElementById('send-btn');
+  btn.disabled = true;
+
+  appendMsg('user', text);
+  chatHistory.push({role:'user', content:text});
+
+  const loaderId = appendLoader();
+
+  try {
+    const res = await fetch('/api/chat', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ messages: chatHistory, system: systemPrompt })
+    });
+    const data = await res.json();
+    removeLoader(loaderId);
+
+    if(data.error){
+      appendMsg('assistant', 'Error: ' + data.error);
+    } else {
+      appendMsg('assistant', data.response);
+      chatHistory.push({role:'assistant', content:data.response});
+    }
+  } catch(e){
+    removeLoader(loaderId);
+    appendMsg('assistant', 'Connection error. Check your API key is set in Vercel environment variables.');
+  }
+  btn.disabled = false;
+}
+
+function appendMsg(role, text){
+  const wrap = document.getElementById('chat-messages');
+  const div = document.createElement('div');
+  div.className = 'msg ' + role;
+  div.textContent = text;
+  wrap.appendChild(div);
+  wrap.scrollTop = wrap.scrollHeight;
+  return div.id;
+}
+
+let loaderCount = 0;
+function appendLoader(){
+  const wrap = document.getElementById('chat-messages');
+  const id = 'loader-' + (++loaderCount);
+  const div = document.createElement('div');
+  div.className = 'msg loading';
+  div.id = id;
+  div.innerHTML = '<div class="typing-dots"><span></span><span></span><span></span></div>';
+  wrap.appendChild(div);
+  wrap.scrollTop = wrap.scrollHeight;
+  return id;
+}
+function removeLoader(id){
+  const el = document.getElementById(id);
+  if(el) el.remove();
+}
+
+document.getElementById('chat-input').addEventListener('keydown', e=>{
+  if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); sendMessage(); }
+});
+</script>
+</body>
+</html>
