@@ -559,6 +559,32 @@ function removeLoader(id){
 document.getElementById('chat-input').addEventListener('keydown', e=>{
   if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); sendMessage(); }
 });
+// Resizable sidebar
+const sidebar = document.querySelector('.sidebar');
+const handle = document.createElement('div');
+handle.className = 'resize-handle';
+sidebar.prepend(handle);
+
+let isResizing = false;
+handle.addEventListener('mousedown', e => {
+  isResizing = true;
+  handle.classList.add('dragging');
+  document.body.style.cursor = 'col-resize';
+  e.preventDefault();
+});
+document.addEventListener('mousemove', e => {
+  if (!isResizing) return;
+  const newWidth = window.innerWidth - e.clientX;
+  if (newWidth > 260 && newWidth < 600) {
+    sidebar.style.width = newWidth + 'px';
+    document.querySelector('.layout').style.gridTemplateColumns = `1fr ${newWidth}px`;
+  }
+});
+document.addEventListener('mouseup', () => {
+  isResizing = false;
+  handle.classList.remove('dragging');
+  document.body.style.cursor = '';
+});
 </script>
 </body>
 </html>
