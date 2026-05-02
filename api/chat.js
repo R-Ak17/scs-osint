@@ -21,7 +21,7 @@ export default async function handler(req, res) {
       body: JSON.stringify({
         model: 'llama-3.1-8b-instant',
         messages: [
-          { role: 'system', content: system || 'You are an OSINT analyst specialising in South China Sea maritime disputes. Answer concisely and factually.' },
+          { role: 'system', content: system || 'You are an OSINT analyst specialising in South China Sea maritime disputes. Answer concisely and factually. Optimise formatting, remove dashes and do line breaks accordingly.' },
           ...messages
         ],
         max_tokens: 1024,
