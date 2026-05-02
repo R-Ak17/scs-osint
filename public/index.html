@@ -415,18 +415,24 @@ function drawMap(){
     svg.append('text').attr('x',px(lon)+2).attr('y',H-4).attr('fill',labelCol).attr('font-size','9').text(lon+'°E');
   }
 
-  const lands=[
-    {pts:[[105,22],[122,22],[122,20],[120,20],[118,21],[116,21],[114,22],[112,22],[110,21],[108,19],[106,19],[105,20]]},
-    {pts:[[105,22],[109,18],[109,16],[108,14],[108,11],[107,10],[106,10],[104,10],[103,11],[103,14],[104,17],[104,20],[105,22]]},
-    {pts:[[118,18],[121,18],[122,17],[121,15],[120,14],[119,13],[118,14],[117,15],[118,18]]},
-    {pts:[[117,11],[119,11],[120,10],[119,9],[118,8],[117,9],[116,10],[117,11]]},
-    {pts:[[109,4],[116,4],[117,5],[118,6],[117,7],[115,6],[113,5],[110,4],[109,4]]},
-    {pts:[[114,4],[115,4],[115,5],[114,5],[114,4]]},
-    {pts:[[120,22],[122,22],[122,25],[120,25],[120,22]]},
-  ];
-  lands.forEach(l=>{
-    svg.append('polygon').attr('points',l.pts.map(p=>`${px(p[0])},${py(p[1])}`).join(' '))
-      .attr('fill',isDark?'#2C2C2A':'#e8e5dc').attr('stroke',isDark?'#444441':'#c8c5bc').attr('stroke-width',0.75);
+  // Load real coastlines
+d3.json('https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json').then(world => {
+  const projection = d3.geoMercator()
+    .center([113.5, 12])
+    .scale(1800)
+    .translate([W/2, H/2]);
+  
+  const path = d3.geoPath().projection(projection);
+  const countries = topojson.feature(world, world.objects.countries);
+  
+  svg.selectAll('.country')
+    .data(countries.features)
+    .enter().append('path')
+    .attr('class', 'country')
+    .attr('d', path)
+    .attr('fill', isDark ? '#1a2a1a' : '#e8e5dc')
+    .attr('stroke', isDark ? '#2a3a2a' : '#c8c5bc')
+    .attr('stroke-width', 0.75);
   });
 
   const dash=[[109,21],[112,22],[116,21],[118,17],[119,14],[119,10],[116,7],[113,5],[110,5],[108,8],[107,11],[107,14],[108,18],[109,21]];
