@@ -45,6 +45,9 @@ const text = raw
   .replace(/([.!?])\s+(?=[A-Z])/g, '$1\n\n')  // line break after sentences
   .trim();
 
+const text = (data?.choices?.[0]?.message?.content || 'No response received.')
+  .replace(/\n(\d+\.)/g, '\n\n$1');  // add extra line break BEFORE numbers
+
 res.status(200).json({ response: text });
 
   } catch (err) {
