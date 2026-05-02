@@ -396,19 +396,68 @@ function toggleD(i){
 }
 
 function drawMap(){
-  const svg=d3.select('#scs-map');
-  const W=680,H=440;
-  const isDark=matchMedia('(prefers-color-scheme:dark)').matches;
-  const gridCol=isDark?'rgba(255,255,255,0.05)':'rgba(0,0,0,0.05)';
-  const labelCol=isDark?'#888780':'#888780';
-  const latMin=3,latMax=22,lonMin=105,lonMax=122;
-  function px(lon){return(lon-lonMin)/(lonMax-lonMin)*W;}
-  function py(lat){return H-(lat-latMin)/(latMax-latMin)*H;}
-  // Replace px() and py() usage for island dots with:
-islands.forEach((isl, i) => {
-  const [x, y] = projection([isl.lon, isl.lat]);
-  // rest of your dot drawing code stays the same
-});
+  const svg = d3.select('#scs-map');
+  const W = 680, H = 440;
+  const isDark = matchMedia('(prefers-color-scheme:dark)').matches;
+  const labelCol = '#888780';
+
+  svg.append('rect').attr('width',W).attr('height',H).attr('fill', isDark?'#071222':'#dbeaf7');
+
+  const projection = d3.geoMercator()
+    .center([113.5, 12])
+    .scale(1800)
+    .translate([W/2, H/2]);
+
+  const path = d3.geoPath().projection(projection);
+
+  d3.json('https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json').then(world => {
+    const countries = topojson.feature(world, world.objects.countries);
+
+    svg.selectAll('.country')
+      .data(countries.features)
+      .enter().append('path')
+      .attr('class','country')
+      .attr('d', path)
+      .attr('fill', isDark?'#1a2a1a':'#e8e5dc')
+      .attr('stroke', isDark?'#2a3a2a':'#c8c5bc')
+      .attr('stroke-width', 0.75);
+
+    // Nine-dash line
+    const dash=[[109,21],[112,22],[116,21],[118,17],[119,14],[119,10],[116,7],[113,5],[110,5],[108,8],[107,11],[107,14],[108,18],[109,21]];
+    svg.append('polygon')
+      .attr('points', dash.map(p => projection(p).join(',')).join(' '))
+      .attr('fill','none').attr('stroke','#E24B4A')
+      .attr('stroke-width',1.5).attr('stroke-dasharray','6,4').attr('opacity',0.55);
+
+    // Labels
+    svg.append('text').attr('x', projection([111.5,14])[0]).attr('y', projection([111.5,14])[1])
+      .attr('fill', isDark?'#85B7EB':'#185FA5').attr('font-size','13').attr('font-weight','500').attr('text-anchor','middle').text('South China Sea');
+    svg.append('text').attr('x', projection([111,14.8])[0]).attr('y', projection([111,14.8])[1]+16)
+      .attr('fill','#E24B4A').attr('font-size','8.5').attr('opacity',0.75).text('Nine-dash line');
+
+    const nationLabels=[
+      {n:'CHINA',pos:[111.5,21]},{n:'VIETNAM',pos:[106.2,14]},
+      {n:'PHILIPPINES',pos:[120.8,14]},{n:'MALAYSIA',pos:[111,5.2]}
+    ];
+    nationLabels.forEach(n=>{
+      const [x,y] = projection(n.pos);
+      svg.append('text').attr('x',x).attr('y',y).attr('fill',labelCol)
+        .attr('font-size','8').attr('text-anchor','middle').attr('letter-spacing','1').text(n.n);
+    });
+
+    // Island dots
+    const colorMap={CN:'#E24B4A',PH:'#185FA5',VN:'#639922',TW:'#BA7517',MY:'#EF9F27'};
+    islands.forEach((isl,i)=>{
+      const [x,y] = projection([isl.lon, isl.lat]);
+      const col = colorMap[isl.ctrl]||'#888780';
+      const g = svg.append('g').style('cursor','pointer').on('click',()=>toggleD(i));
+      g.append('circle').attr('cx',x).attr('cy',y).attr('r',6).attr('data-island',i)
+        .attr('fill',col).attr('stroke','#fff').attr('stroke-width',1.5).attr('opacity',0.9);
+      g.append('text').attr('x',x+9).attr('y',y+4)
+        .attr('fill',isDark?'#D3D1C7':'#2C2C2A').attr('font-size','9').attr('font-weight','500').text(isl.name);
+    });
+  });
+}
 
   svg.append('rect').attr('width',W).attr('height',H).attr('fill',isDark?'#0d1f35':'#dbeaf7');
 
