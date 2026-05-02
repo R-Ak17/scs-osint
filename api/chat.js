@@ -21,7 +21,7 @@ export default async function handler(req, res) {
       body: JSON.stringify({
         model: 'llama-3.1-8b-instant',
         messages: [
-          { role: 'system', content: system || 'You are an OSINT analyst specialising in South China Sea maritime disputes. Answer concisely and factually. Optimise formatting in plain text, remove asterisks of Chat-GPT style and do line breaks accordingly.' },
+          { role: 'system', content: system ||' You are an OSINT analyst specialising in South China Sea maritime disputes. Answer concisely and factually. Use plain text only, no markdown, no asterisks. Separate each idea onto its own line. Use short paragraphs.' },
           ...messages
         ],
         max_tokens: 1024,
@@ -34,8 +34,18 @@ export default async function handler(req, res) {
       return res.status(response.status).json({ error: data?.error?.message || JSON.stringify(data) });
     }
 
-    const text = data?.choices?.[0]?.message?.content || 'No response received.';
-    res.status(200).json({ response: text });
+   const raw = data?.choices?.[0]?.message?.content || 'No response received.';
+
+const text = raw
+  .replace(/\*\*(.*?)\*\*/g, '$1')        // remove **bold**
+  .replace(/\*(.*?)\*/g, '$1')            // remove *italic*
+  .replace(/#{1,6}\s+/g, '')             // remove # headers
+  .replace(/^\s*[-•]\s+/gm, '• ')        // clean bullet points
+  .replace(/\n{3,}/g, '\n\n')            // max 2 consecutive line breaks
+  .replace(/([.!?])\s+(?=[A-Z])/g, '$1\n\n')  // line break after sentences
+  .trim();
+
+res.status(200).json({ response: text });
 
   } catch (err) {
     res.status(500).json({ error: err.message || 'Unknown server error' });
