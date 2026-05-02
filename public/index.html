@@ -402,8 +402,11 @@ function drawMap(){
   const gridCol=isDark?'rgba(255,255,255,0.05)':'rgba(0,0,0,0.05)';
   const labelCol=isDark?'#888780':'#888780';
   const latMin=3,latMax=22,lonMin=105,lonMax=122;
-  function px(lon){return(lon-lonMin)/(lonMax-lonMin)*W;}
-  function py(lat){return H-(lat-latMin)/(latMax-latMin)*H;}
+  // Replace px() and py() usage for island dots with:
+islands.forEach((isl, i) => {
+  const [x, y] = projection([isl.lon, isl.lat]);
+  // rest of your dot drawing code stays the same
+});
 
   svg.append('rect').attr('width',W).attr('height',H).attr('fill',isDark?'#0d1f35':'#dbeaf7');
 
