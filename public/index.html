@@ -545,7 +545,8 @@ function drawMap(){
       .attr('stroke',isDark?'#2a3a2a':'#c8c5bc')
       .attr('stroke-width',0.75);
   });
-  
+}
+
 function renderRadar(){
   const isDark=matchMedia('(prefers-color-scheme:dark)').matches;
   new Chart(document.getElementById('radarChart'),{
