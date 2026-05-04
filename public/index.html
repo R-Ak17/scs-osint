@@ -482,8 +482,12 @@ islands.forEach((isl,i)=>{
     g.append('circle').attr('cx',x).attr('cy',y).attr('r',6).attr('data-island',i)
       .attr('fill',col).attr('stroke','#fff').attr('stroke-width',1.5).attr('opacity',0.9);
     g.append('text').attr('x',x+9).attr('y',y+4).attr('fill',isDark?'#D3D1C7':'#2C2C2A').attr('font-size','9').attr('font-weight','500').text(isl.name);
+  const circle = g.append('circle').attr('cx',x).attr('cy',y).attr('r',6).attr('data-island',i)
+  .attr('fill',col).attr('stroke','#fff').attr('stroke-width',1.5).attr('opacity',0.9);
+if(isl.risk === 'high') circle.classed('pulse-dot', true);
   });
 }
+  
 
 function renderRadar(){
   const isDark=matchMedia('(prefers-color-scheme:dark)').matches;
