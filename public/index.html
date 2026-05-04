@@ -202,6 +202,14 @@ body { line-height: 1.6; }
   font-family: -apple-system, sans-serif;
   letter-spacing: 0.05em;
 }
+
+@keyframes pulse {
+  0% { r: 6; opacity: 0.9; }
+  50% { r: 9; opacity: 0.5; }
+  100% { r: 6; opacity: 0.9; }
+}
+.pulse-dot { animation: pulse 1.5s infinite ease-in-out; }
+  
 </style>
 </head>
 <body>
