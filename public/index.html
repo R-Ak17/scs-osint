@@ -477,16 +477,45 @@ d3.json('https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json').then(w
 });
 
 islands.forEach((isl,i)=>{
-    const x=px(isl.lon),y=py(isl.lat),col=colorMap[isl.ctrl]||'#888780';
-    const g=svg.append('g').style('cursor','pointer').on('click',()=>toggleD(i));
-    g.append('circle').attr('cx',x).attr('cy',y).attr('r',6).attr('data-island',i)
-      .attr('fill',col).attr('stroke','#fff').attr('stroke-width',1.5).attr('opacity',0.9);
-    g.append('text').attr('x',x+9).attr('y',y+4).attr('fill',isDark?'#D3D1C7':'#2C2C2A').attr('font-size','9').attr('font-weight','500').text(isl.name);
-  const circle = g.append('circle').attr('cx',x).attr('cy',y).attr('r',6).attr('data-island',i)
-  .attr('fill',col).attr('stroke','#fff').attr('stroke-width',1.5).attr('opacity',0.9);
-if(isl.risk === 'high') circle.classed('pulse-dot', true);
-  });
-}
+  const x=px(isl.lon), y=py(isl.lat), col=colorMap[isl.ctrl]||'#888780';
+  const [ox,oy] = offsets[i]||[9,4];
+  const g=svg.append('g').style('cursor','pointer').on('click',()=>toggleD(i));
+
+  // Different shapes per claimant
+  if(isl.ctrl==='CN'){
+    const circle = g.append('circle').attr('cx',x).attr('cy',y).attr('r',6)
+      .attr('data-island',i).attr('fill',col).attr('stroke','#fff').attr('stroke-width',1.5).attr('opacity',0.9);
+    if(isl.risk==='high') circle.classed('pulse-dot',true);
+  } else if(isl.ctrl==='PH'){
+    // Diamond
+    g.append('polygon')
+      .attr('points',`${x},${y-8} ${x+7},${y} ${x},${y+8} ${x-7},${y}`)
+      .attr('data-island',i).attr('fill',col).attr('stroke','#fff').attr('stroke-width',1.5).attr('opacity',0.9);
+    if(isl.risk==='high'){
+      g.append('polygon')
+        .attr('points',`${x},${y-8} ${x+7},${y} ${x},${y+8} ${x-7},${y}`)
+        .attr('fill',col).attr('opacity',0.3).classed('pulse-dot',true);
+    }
+  } else if(isl.ctrl==='VN'){
+    // Triangle
+    g.append('polygon')
+      .attr('points',`${x},${y-8} ${x+7},${y+5} ${x-7},${y+5}`)
+      .attr('data-island',i).attr('fill',col).attr('stroke','#fff').attr('stroke-width',1.5).attr('opacity',0.9);
+  } else {
+    // Square for MY/TW
+    g.append('rect')
+      .attr('x',x-6).attr('y',y-6).attr('width',12).attr('height',12)
+      .attr('data-island',i).attr('fill',col).attr('stroke','#fff').attr('stroke-width',1.5).attr('opacity',0.9);
+  }
+
+  // Label
+  g.append('text').attr('x',x+ox).attr('y',y+oy)
+    .attr('fill',isDark?'#D3D1C7':'#2C2C2A').attr('font-size','9').attr('font-weight','500')
+    .attr('paint-order','stroke')
+    .attr('stroke',isDark?'#071222':'#dbeaf7')
+    .attr('stroke-width','2')
+    .text(isl.name);
+});
   
 
 function renderRadar(){
